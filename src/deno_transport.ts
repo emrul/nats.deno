@@ -21,7 +21,6 @@ import {
 import { writeAll } from "https://deno.land/std@0.200.0/streams/write_all.ts";
 import {
   checkOptions,
-  checkUnsupportedOption,
   ConnectionOptions,
   DataBuffer,
   Empty,
@@ -122,19 +121,28 @@ export class DenoTransport implements Transport {
       ? this.options.tls
       : {} as TlsOptions;
 
-    // these options are not available in Deno
-    checkUnsupportedOption("tls.ca", tls.ca);
-    checkUnsupportedOption("tls.cert", tls.cert);
-    checkUnsupportedOption("tls.certFile", tls.certFile);
-    checkUnsupportedOption("tls.key", tls.key);
-    checkUnsupportedOption("tls.keyFile", tls.keyFile);
-
     const sto = { hostname } as Deno.StartTlsOptions;
     if (tls.caFile) {
       const ca = await Deno.readTextFile(tls.caFile);
       sto.caCerts = [ca];
     }
+    else if (tls.ca) {
+      sto.caCerts = [tls.ca];
+    }
 
+    if (tls.certFile) {
+      sto.certChain = await Deno.readTextFile(tls.certFile);
+    }
+    else if (tls.cert) {
+      sto.certChain = tls.cert;
+    }
+
+    if (tls.keyFile) {
+      sto.privateKey = await Deno.readTextFile(tls.keyFile);
+    }
+    else if (tls.key) {
+      sto.privateKey = tls.key;
+    }
     this.conn = await Deno.startTls(
       this.conn,
       sto,
